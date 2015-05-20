@@ -1,0 +1,241 @@
+<?php
+
+$config = array(
+	'db' => array(
+		'host' => '127.0.0.1',
+		'user' => 'root',
+		'password' => '',
+		'database' => 'sitemap',
+	),
+	'maxlevel' => 100,
+);
+
+main();
+
+function main() {
+	$shortopts  = "";
+	$longopts  = array(
+	    "generate::",     // generate sitemap
+	    "crawl:",        // crawl the website
+	    "initdb::",
+	    "cleardatabase::",
+	);
+	$options = getopt($shortopts, $longopts);
+
+	if(isset($options['crawl'])){
+		global $website;
+		$parts = parse_url($options['crawl']);
+		$website = $options['s'];
+		if(isset($parts['host'])) {
+			$website = $parts['host'];
+		}
+		crawl($website);
+	}elseif(isset($options['cleardatabase'])){
+		clear_database();
+	}elseif(isset($options['initdb'])){
+		initial_db();
+	}else{
+		echo 'This is a website crawler and sitemap generator', PHP_EOL;
+		echo 'Please send one of those commands',PHP_EOL;
+		print_r($longopts);
+		echo PHP_EOL;
+	}
+
+}
+
+function crawl($website) {
+	echo 'Start with ',$website,PHP_EOL;
+	$url = 'http://'.$website;
+	add_one_url($url, 1, $url);
+	crawl_with_level(1);
+}
+
+function get_total_page_by_level($level) {
+	$link = connect_db();
+	$query = "SELECT count(*) as cnt FROM pages WHERE level = {$level}";
+	$result = mysqli_query($link, $query);
+	if($result) {
+		$row = $result->fetch_assoc();
+		return $row['cnt'];
+	}else{
+		die(__FUNCTION__." error:[ level={$level} ] " . mysqli_error($link));
+	}
+}
+
+function crawl_with_level($level) {
+	$total_pages = get_total_page_by_level($level);
+	if($total_pages<1) {
+		die("ALL DONE with level: " .$level);
+	}
+	echo "crawl_with_level[ level={$level}, total_pages={$total_pages} ]",PHP_EOL;
+	$link = connect_db();
+	$query = "SELECT * FROM pages WHERE level = {$level}";
+	$result = mysqli_query($link, $query);
+	if($result) {
+		while ($row = $result->fetch_assoc()) {
+			scan_one_page($row['url'], $row['level']);
+		}
+	}else{
+		die(__FUNCTION__." error:[ level={$level} ] " . mysqli_error($link));
+	}
+
+	crawl_with_level($level+1);
+}
+
+function scan_one_page($url, $level) {
+	echo "scanning[ level={$level} ] : {$url}",PHP_EOL;
+	list($code, $header, $text) = get_page_contents($url);
+	if($code>=200 && $code<300){
+		preg_match_all('|<a(.*)>(.*)</a>|U', $text, $matches, PREG_PATTERN_ORDER);
+		$links = $matches[0];
+		foreach($links as $link){
+			$new_url = grap_url_from_link($link, $level);
+			$new_url = normalize_url($new_url);
+			if($new_url) {
+				add_one_url($new_url, $level + 1, $url);
+			}
+		}
+	}
+	update_page_status($url, $code);
+}
+
+function normalize_url($url) {
+	global $website;
+	if(strpos($url, 'https') !== false){ //ignore https
+		return false;
+	}
+	if(strpos($url, 'http') !== false){
+		if(strpos($url, $website) === false) { //ignore external links
+			return false;
+		}
+	}elseif($url[0] == '/'){
+		$url = 'http://'.$website.$url;
+	}else{
+		return false;
+	}
+
+	$pos = strpos($url, '#');
+	if($pos>0) {
+		$url = substr($url, 0, $pos);
+	}
+
+	$url = rtrim($url, '/');
+	return $url;
+}
+
+function grap_url_from_link($link, $level) {
+	preg_match_all('|href="(.*)"|U', $link, $matches, PREG_PATTERN_ORDER);
+	$urls = $matches[1];
+	if(!isset($urls[0])){
+		preg_match_all("|href='(.*)'|U", $link, $matches, PREG_PATTERN_ORDER);
+	}
+	$urls = $matches[1];
+	if(isset($urls[0])) {
+		return $urls[0];
+	}
+	return false;
+}
+
+function get_page_contents($url) {
+	$options = array(
+        CURLOPT_RETURNTRANSFER => true,     // return web page
+        CURLOPT_HEADER         => true,    // return headers
+        CURLOPT_FOLLOWLOCATION => true,     // follow redirects
+        CURLOPT_ENCODING       => "",       // handle all encodings
+        CURLOPT_USERAGENT      => "pwespider", // who am i
+        CURLOPT_AUTOREFERER    => true,     // set referer on redirect
+        CURLOPT_CONNECTTIMEOUT => 10,      // timeout on connect
+        CURLOPT_TIMEOUT        => 10,      // timeout on response
+        CURLOPT_MAXREDIRS      => 10,       // stop after 10 redirects
+    );	
+	$ch = curl_init( $url );
+    curl_setopt_array( $ch, $options );
+    $response = curl_exec( $ch );
+    $err     = curl_errno( $ch );
+    $errmsg  = curl_error( $ch );
+    $info  = curl_getinfo( $ch );
+    $http_code = $info['http_code'];
+    $header_size = $info['header_size'];
+    curl_close( $ch );
+    if($err) {
+    	echo $errmsg, PHP_EOL;
+    }
+    $header = substr($response, 0, $header_size);
+	$body = substr($response, $header_size);
+    return array($http_code, $header, $body);
+}
+
+function update_page_status($url, $http_code) {
+	$link = connect_db();
+	$url_crc = crc32($url);
+	$query = "UPDATE pages SET page_code = {$http_code} WHERE url_crc = {$url_crc} AND URL = '{$url}' LIMIT 1";
+	if (mysqli_query($link, $query) === TRUE) {
+	    //pass
+	}else{
+		die(__FUNCTION__." error: [url = {$url}] ". mysqli_error($link));
+	}
+}
+
+function add_one_url($url, $level, $referer_url) {
+	$link = connect_db();
+	$url_crc = crc32($url);
+	$create_time = time();
+	$query = "INSERT INTO pages(id, url, url_crc, level, referer_url, create_time)
+		VALUES(NULL, '$url', {$url_crc}, {$level}, '{$referer_url}', {$create_time})";
+
+	if (mysqli_query($link, $query) === TRUE) {
+	    //pass
+	}else{
+		$error = mysqli_error($link);
+		if(strpos($error, 'Duplicate entry') === FALSE) {
+			die(__FUNCTION__." error: [url = {$url}, level={$level}] ". $error);
+		}
+	}
+}
+
+function clear_database() {
+	$link = connect_db();
+	$query = "TRUNCATE TABLE `pages`";
+	if (mysqli_query($link, $query) === TRUE) {
+	    //pass
+	}else{
+		die('TRUNCATE TABLE failed: '. mysqli_error($link));
+	}	
+}
+
+function connect_db() {
+	global $mysqli, $config;
+	if(!$mysqli) {
+		$mysqli = mysqli_connect($config['db']['host'], $config['db']['user'], $config['db']['password'], $config['db']['database']);
+		if(mysqli_connect_errno()){
+	    	die('Failed to connect to MySQL:' . mysqli_connect_error());
+		}	
+	}
+	return $mysqli;
+}
+
+function initial_db() {
+	$query = "
+CREATE TABLE `pages` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `url` varchar(255) NOT NULL,
+  `url_crc` bigint(10) NOT NULL,
+  `level` int(11) NOT NULL,
+  `page_code` int(11) NOT NULL DEFAULT '0',
+  `referer_url` varchar(255) NOT NULL DEFAULT '-',
+  `create_time` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `url` (`url`),
+  KEY `url_crc` (`url_crc`)
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+";
+
+	$link = connect_db();
+
+	if (mysqli_query($link, $query) === TRUE) {
+	    //pass
+	}else{
+		die(__FUNCTION__." error: ". mysqli_error($link));
+	}	
+	echo 'initial done.',PHP_EOL;
+}
