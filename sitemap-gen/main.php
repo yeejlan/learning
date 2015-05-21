@@ -262,7 +262,7 @@ function generate_sitemap() {
 		$result = mysqli_query($link, $query);
 		if($result) {
 			while ($row = $result->fetch_assoc()) {
-				$records[] = generate_once_record($row['url']);
+				$records[] = generate_one_record($row['url']);
 			}
 			write_sitemap($output_file, $records);
 		}else{
@@ -368,7 +368,7 @@ function fwrite_or_die($handle, $content) {
     }
 }
 
-function generate_once_record($url) {
+function generate_one_record($url) {
 	$record = "<url><loc>{$url}</loc></url>\r\n";
 	return $record;
 }
