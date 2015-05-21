@@ -7,9 +7,9 @@ $config = array(
 		'password' => '',
 		'database' => 'sitemap',
 	),
-	'maxlevel' => 100,
 );
 
+date_default_timezone_set('UTC');
 main();
 
 function main() {
@@ -30,6 +30,8 @@ function main() {
 			$website = $parts['host'];
 		}
 		crawl($website);
+	}elseif(isset($options['generate'])){
+		generate_sitemap();
 	}elseif(isset($options['cleardatabase'])){
 		clear_database();
 	}elseif(isset($options['initdb'])){
@@ -238,4 +240,147 @@ CREATE TABLE `pages` (
 		die(__FUNCTION__." error: ". mysqli_error($link));
 	}	
 	echo 'initial done.',PHP_EOL;
+}
+
+function generate_sitemap() {
+	$urls_per_index = 20000;
+	$total_page = get_total_page_200();
+	$files_cnt = ceil($total_page/$urls_per_index);
+
+	$link = connect_db();
+	for($i=1; $i<=$files_cnt; $i++) {
+		if($i == 1) {
+			$idx = '';
+		}else{
+			$idx = $i;
+		}
+		$output_file = "sitemap{$idx}.xml";
+		$records = array();
+
+		$offset = ($i-1)*$urls_per_index;
+		$query = "SELECT * FROM pages WHERE page_code = 200 order by id limit {$urls_per_index} offset {$offset}";
+		$result = mysqli_query($link, $query);
+		if($result) {
+			while ($row = $result->fetch_assoc()) {
+				$records[] = generate_once_record($row['url']);
+			}
+			write_sitemap($output_file, $records);
+		}else{
+			die(__FUNCTION__." error: " . mysqli_error($link));
+		}		
+	}
+	write_sitemap_index($files_cnt);
+	create_gz_files($files_cnt);
+	echo "ALL DONE",PHP_EOL;
+
+}
+
+function create_gz_files($files_cnt) {
+	if(PHP_OS != 'Linux') {
+		echo 'Skip gzip',PHP_EOL;
+		return;
+	}
+	for($i=1; $i<=$files_cnt; $i++) {
+		if($i == 1) {
+			$idx = '';
+		}else{
+			$idx = $i;
+		}
+		$sitemap_file = "sitemap{$idx}.xml";
+		passthru("gzip -f < {$sitemap_file} > {$sitemap_file}.gz");
+	}
+	$sitemap_index_file = 'sitemap-index.xml';
+	passthru("gzip -f < {$sitemap_index_file} > {$sitemap_index_file}.gz");
+
+}
+
+function write_sitemap($filename, $records) {
+	$header = '<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+';
+	$footer = '</urlset>';
+
+	echo "Gennerating {$filename}...",PHP_EOL;
+	$handle = fopen_or_die($filename, 'wa');
+	fwrite_or_die($handle, $header);
+	foreach($records as $record) {
+		fwrite_or_die($handle, $record);
+	}
+	fwrite_or_die($handle, $footer);
+	fclose($handle);
+	echo "Done: {$filename}", PHP_EOL;	
+}
+
+function get_website_name() {
+	$link = connect_db();
+	$query = "SELECT url FROM pages order by id limit 1";
+	$result = mysqli_query($link, $query);
+	if($result) {
+		$row = $result->fetch_assoc();
+		$url = $row['url'];
+		$parts = parse_url($url);
+		return $parts['host'];
+	}else{
+		die(__FUNCTION__." error:[ level={$level} ] " . mysqli_error($link));
+	}
+}
+
+function write_sitemap_index($files_cnt) {
+	$website = get_website_name();
+
+	$filename = 'sitemap-index.xml';
+	$header = '<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+';
+	$footer = '</sitemapindex>';	
+
+	echo "Gennerating {$filename}...",PHP_EOL;
+	$handle = fopen_or_die($filename, 'wa');
+	fwrite_or_die($handle, $header);
+	for($i=1; $i<=$files_cnt; $i++) {
+		if($i == 1) {
+			$idx = '';
+		}else{
+			$idx = $i;
+		}
+		$sitemap_file = "sitemap{$idx}.xml.gz";
+		$loc = 'http://'.$website.'/'.$sitemap_file;
+		$time = date('c');
+		$record = "<sitemap><loc>{$loc}</loc><lastmod>{$time}</lastmod></sitemap>\r\n";
+		fwrite_or_die($handle, $record);
+	}
+	fwrite_or_die($handle, $footer);
+	fclose($handle);
+	echo "Done: {$filename}", PHP_EOL;	
+}
+
+function fopen_or_die($filename, $mode) {
+	$handle = fopen($filename, 'wa');
+	if(!$handle) {
+		die("Cannot open file: $filename");
+	}
+	return $handle;
+}
+
+function fwrite_or_die($handle, $content) {
+	if (fwrite($handle, $content) === FALSE) {
+        die("Cannot write to file");
+    }
+}
+
+function generate_once_record($url) {
+	$record = "<url><loc>{$url}</loc></url>\r\n";
+	return $record;
+}
+
+function get_total_page_200() {
+	$link = connect_db();
+	$query = "SELECT count(*) as cnt FROM pages WHERE page_code = 200";
+	$result = mysqli_query($link, $query);
+	if($result) {
+		$row = $result->fetch_assoc();
+		return $row['cnt'];
+	}else{
+		die(__FUNCTION__." error: " . mysqli_error($link));
+	}
 }
