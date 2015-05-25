@@ -170,6 +170,7 @@ function get_page_contents($url) {
 function update_page_status($url, $http_code) {
 	$link = connect_db();
 	$url_crc = crc32($url);
+	$url = mysqli_escape_string($url);
 	$query = "UPDATE pages SET page_code = {$http_code} WHERE url_crc = {$url_crc} AND URL = '{$url}' LIMIT 1";
 	if (mysqli_query($link, $query) === TRUE) {
 	    //pass
@@ -182,6 +183,8 @@ function add_one_url($url, $level, $referer_url) {
 	$link = connect_db();
 	$url_crc = crc32($url);
 	$create_time = time();
+	$url = mysqli_escape_string($url);
+	$referer_url = mysqli_escape_string($referer_url);
 	$query = "INSERT INTO pages(id, url, url_crc, level, referer_url, create_time)
 		VALUES(NULL, '$url', {$url_crc}, {$level}, '{$referer_url}', {$create_time})";
 
