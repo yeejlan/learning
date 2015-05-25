@@ -25,7 +25,7 @@ function main() {
 	if(isset($options['crawl'])){
 		global $website;
 		$parts = parse_url($options['crawl']);
-		$website = $options['s'];
+		$website = $options['crawl'];
 		if(isset($parts['host'])) {
 			$website = $parts['host'];
 		}
