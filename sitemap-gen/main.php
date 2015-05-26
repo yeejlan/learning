@@ -10,7 +10,11 @@ $config = array(
 );
 
 date_default_timezone_set('UTC');
+$start_time = time();
 main();
+$end_time = time();
+$cost = $end_time - $start_time;
+echo "Total cost: $cost second(s)",PHP_EOL;
 
 function main() {
 	$shortopts  = "";
@@ -67,7 +71,8 @@ function get_total_page_by_level($level) {
 function crawl_with_level($level) {
 	$total_pages = get_total_page_by_level($level);
 	if($total_pages<1) {
-		die("ALL DONE with level: " .$level);
+		echo "ALL DONE with level: ", $level, PHP_EOL;
+		return;
 	}
 	echo "crawl_with_level[ level={$level}, total_pages={$total_pages} ]",PHP_EOL;
 	$link = connect_db();
