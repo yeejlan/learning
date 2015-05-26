@@ -379,7 +379,27 @@ function fwrite_or_die($handle, $content) {
     }
 }
 
+
+
 function generate_one_record($url) {
+	$search  = array('&', '<', '>', '\'', '"');
+	$replace = array('&amp;', '&lt;', '&gt;', '&apos;', '&quot;');
+	$url = str_replace($search, $replace, $url);
+
+$regex = <<<'END'
+/
+  (
+    (?: [\x00-\x7F]                 # single-byte sequences   0xxxxxxx
+    |   [\xC0-\xDF][\x80-\xBF]      # double-byte sequences   110xxxxx 10xxxxxx
+    |   [\xE0-\xEF][\x80-\xBF]{2}   # triple-byte sequences   1110xxxx 10xxxxxx * 2
+    |   [\xF0-\xF7][\x80-\xBF]{3}   # quadruple-byte sequence 11110xxx 10xxxxxx * 3 
+    ){1,100}                        # ...one or more times
+  )
+| .                                 # anything else
+/x
+END;
+	$url = preg_replace($regex, '$1', $url);
+	
 	$record = "<url><loc>{$url}</loc></url>\r\n";
 	return $record;
 }
