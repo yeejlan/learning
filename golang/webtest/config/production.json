@@ -1,0 +1,9 @@
+{
+    "app.name" : "App",
+    "app.domain" : "",
+    
+    "session.name" : "MYSESSID",
+    "session.storage" : "memcache",
+    "session.servers" : "127.0.0.1:11211",
+    "session.maxconn" : "1"
+}
