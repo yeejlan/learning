@@ -68,7 +68,7 @@ function checkAndReplaceDir($dir, $replace) {
 	}elseif(is_dir($dir)) {
 		if ($dh = opendir($dir)) {
 			while (($file = readdir($dh)) !== false) {
-				$path = $dir.'/'.$file;
+				$path = $dir.DIRECTORY_SEPARATOR.$file;
 				if($file=="." || $file=="..") {
 					//skip
 					
