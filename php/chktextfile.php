@@ -15,6 +15,7 @@ $total = array(
 	'cnt' => 0,
 	'skip' => 0,
 	'skipExt' => array(),
+	'dos' => 0,
 );
 
 date_default_timezone_set('UTC');
@@ -39,7 +40,7 @@ function main() {
 	}else{
 		echo 'This is a crlf check and replace tool', PHP_EOL;
 
-		echo 'Supported file extension :',PHP_EOL;
+		echo 'Supported file extension:',PHP_EOL;
 		print_r($config['ext']);
 		echo PHP_EOL;
 
@@ -53,9 +54,9 @@ function main() {
 function echoStatistics() {
 	global $total;
 	echo PHP_EOL;
-	echo "Total handled: {$total['cnt']}, skipped: {$total['skip']}",PHP_EOL;
-	echo "Skipped Extension: ", PHP_EOL;
-	print_r(array_keys($total['skipExt']));
+	echo "Total scanned: {$total['cnt']}, CRLF format: {$total['dos']}, skipped: {$total['skip']}",PHP_EOL;
+	//echo "Skipped Extension: ", PHP_EOL;
+	//print_r(array_keys($total['skipExt']));
 }
 
 function checkAndReplaceDir($dir, $replace) {
@@ -95,7 +96,7 @@ function checkAndReplaceOne($path, $replace) {
 	static $cnt = 0;
 	$step = 100;
 	$cnt++;
-	if($cnt > $step) {
+	if(0 && $cnt > $step) {
 		printdot('.');
 		$cnt = 0;
 	}
@@ -121,7 +122,8 @@ function checkAndReplaceOne($path, $replace) {
 		return;
 	}else{
 		if(false == $replace) {
-			printdot("[DOS] ".$path);
+			$total['dos'] += 1;
+			printdot("[CRLF] ".$path);
 		}else{ //replace file
 			$unixtxt = str_replace("\r\n", "\n", $text);
 			$ret = file_put_contents($path, $unixtxt);
