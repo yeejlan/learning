@@ -1,6 +1,6 @@
 # Logs
 logs
 *.log
-
-java/storm/build
-java/storm/.gradle
+*.pem
+.gradle
+build
