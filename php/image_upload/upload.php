@@ -10,7 +10,9 @@ define('IMAGE_URL_ROOT', 'http://image.example.com/');
 
 $siteList = array(
 	'test',
-    'dota2',
+    'avatar',
+    'game',
+    'portal',
     'file',
 );
 
