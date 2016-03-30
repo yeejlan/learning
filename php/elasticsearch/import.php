@@ -2,7 +2,6 @@
 
 set_time_limit(0);
 
-define('DEFAULT_LOG_FILE', 'log.txt');
 define('DEFAULT_BUCK_SIZE', 1000);
 
 main();
