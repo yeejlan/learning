@@ -2,6 +2,8 @@
 
 return array(
 
+	'timezone'	=> 'America/Los_Angeles',
+
 	'db'	=> array(
 		'dsn'	=> 'mysql:host=localhost:3306;dbname=test',
 		'user'	=> 'root',

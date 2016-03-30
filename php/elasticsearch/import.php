@@ -57,6 +57,13 @@ function load_config($file) {
 		die('Config file not readable: '. $file);
 	}
 	$config = require $file;
+
+	if(isset($config['timezone'])){
+		date_default_timezone_set($config['timezone']);
+	}
+
+	echo 'Timezone: ', date_default_timezone_get(), PHP_EOL;
+
 	return $config;
 }
 
