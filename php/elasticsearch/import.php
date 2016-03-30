@@ -4,7 +4,7 @@ set_time_limit(0);
 
 define('DEFAULT_LOG_FILE', 'log.txt');
 define('DEFAULT_INCREMENT_INTERVAL', '65');
-define('DEFAULT_BUCK_SIZE', 100);
+define('DEFAULT_BUCK_SIZE', 1000);
 
 main();
 
