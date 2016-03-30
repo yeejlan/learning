@@ -81,7 +81,10 @@ function do_import($options, $interval = null) {
 	$sql = $config['sql'];
 	if($interval) {
 		$timestamp = time() - $interval;
-		$datetime = date('Y-m-d H:i:s', $timestamp);
+		$date_now =  new DateTime('NOW');
+		$date_start = $date_now->sub(new DateInterval("PT{$interval}S"));
+		$datetime = $date_start->format('Y-m-d H:i:s');
+		
 		$sql = str_replace(array('[timestamp]','[datetime]'), array(':timestamp', ':datetime'), $sql);
 		
 	}
