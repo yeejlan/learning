@@ -3,7 +3,6 @@
 set_time_limit(0);
 
 define('DEFAULT_LOG_FILE', 'log.txt');
-define('DEFAULT_INCREMENT_INTERVAL', '65');
 define('DEFAULT_BUCK_SIZE', 1000);
 
 main();
@@ -21,10 +20,10 @@ function main() {
 	if(!isset($options['config'])){
 		help();
 	}elseif(isset($options['full'])){
-		do_full_import($options);
+		do_import($options);
 		exit;
 	}elseif(isset($options['increment'])){
-		do_increment_import($options);
+		do_import($options, $options['increment']);
 		exit;
 	}else{
 		help();
@@ -63,7 +62,7 @@ function load_config($file) {
 }
 
 
-function do_full_import($options) {
+function do_import($options, $interval = null) {
 	$config = load_config($options['config']);
 
 	$dbh = new PDO($config['db']['dsn'], $config['db']['user'], $config['db']['pass']);
@@ -72,10 +71,26 @@ function do_full_import($options) {
 		$dbh->exec('SET NAMES utf8');
 	}
 
+
 	$sql = $config['sql'];
+	if($interval) {
+		$timestamp = time() - $interval;
+		$datetime = date('Y-m-d H:i:s', $timestamp);
+		$sql = str_replace(array('[timestamp]','[datetime]'), array(':timestamp', ':datetime'), $sql);
+		
+	}
+
 	$stmt = $dbh->prepare($sql);
+
+	if(strpos($sql, ':timestamp')){
+		$stmt->bindParam(':timestamp', $timestamp);
+	}
+	if(strpos($sql, ':datetime')){
+		$stmt->bindParam(':datetime', $datetime);
+	}
+
     if($stmt->execute() == false) {
-        die('query db error ' . getMessage());
+        die('query db error ' . var_export($stmt->errorInfo(), true));
     }
 
     $total = 0;
