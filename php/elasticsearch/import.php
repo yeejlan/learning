@@ -11,8 +11,8 @@ function main() {
 	$shortopts  = "";
 	$longopts  = array(
 		"config:",
-	    "full::",     
-	    "increment:",
+		"full::",	 
+		"increment:",
 	);
 	$options = getopt($shortopts, $longopts);
 	
@@ -98,40 +98,40 @@ function do_import($options, $interval = null) {
 		$stmt->bindParam(':datetime', $datetime);
 	}
 
-    if($stmt->execute() == false) {
-        die('query db error ' . var_export($stmt->errorInfo(), true));
-    }
+	if($stmt->execute() == false) {
+		die('query db error ' . var_export($stmt->errorInfo(), true));
+	}
 
-    $total = 0;
-    $time_begin = time();
-    $cnt = 0;
-    $data_formatted = '';
-    $es_url = $config['es'].'/'.$config['index'].'/'.$config['type'].'/_bulk';
-    while($row = $stmt->fetch(PDO::FETCH_ASSOC)){
- 		if(isset($row['_id'])){
- 			$data_formatted .= '{ "index" : { "_id" : "'.$row['_id'].'" } }'."\n";
- 		}else{
- 			die('No _id found '. var_export($row, true));
- 		}
-    	$data_formatted .= json_encode($row)."\n";
-    	$cnt ++ ;
-    	$total ++ ;
-    	if($cnt >= DEFAULT_BUCK_SIZE) {
-    		push_data_to_es($es_url, $data_formatted);
-    		$cnt = 0;
-    		$data_formatted = '';
-    	}
+	$total = 0;
+	$time_begin = time();
+	$cnt = 0;
+	$data_formatted = '';
+	$es_url = $config['es'].'/'.$config['index'].'/'.$config['type'].'/_bulk';
+	while($row = $stmt->fetch(PDO::FETCH_ASSOC)){
+		if(isset($row['_id'])){
+			$data_formatted .= '{ "index" : { "_id" : "'.$row['_id'].'" } }'."\n";
+		}else{
+			die('No _id found '. var_export($row, true));
+		}
+		$data_formatted .= json_encode($row)."\n";
+		$cnt ++ ;
+		$total ++ ;
+		if($cnt >= DEFAULT_BUCK_SIZE) {
+			push_data_to_es($es_url, $data_formatted);
+			$cnt = 0;
+			$data_formatted = '';
+		}
 
 		if($total % ( 5*DEFAULT_BUCK_SIZE) == 0 ) {
 			echo $total, ' ';
 		}
 
-    }
-    if($data_formatted) {
-    	push_data_to_es($es_url, $data_formatted);
-    }
-    $now = date('c');
-    echo PHP_EOL, "$now Total: {$total}, time cost: ", time()-$time_begin, ' second(s)', PHP_EOL;
+	}
+	if($data_formatted) {
+		push_data_to_es($es_url, $data_formatted);
+	}
+	$now = date('c');
+	echo PHP_EOL, "$now Total: {$total}, time cost: ", time()-$time_begin, ' second(s)', PHP_EOL;
 }
 
 function push_data_to_es($url, $data_formatted) {
