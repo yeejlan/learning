@@ -118,10 +118,14 @@ function do_import($options, $interval = null) {
     	$total ++ ;
     	if($cnt >= DEFAULT_BUCK_SIZE) {
     		push_data_to_es($es_url, $data_formatted);
-    		echo $total, ' ';
     		$cnt = 0;
     		$data_formatted = '';
     	}
+
+		if($total % ( 5*DEFAULT_BUCK_SIZE) == 0 ) {
+			echo $total, ' ';
+		}
+
     }
     if($data_formatted) {
     	push_data_to_es($es_url, $data_formatted);
