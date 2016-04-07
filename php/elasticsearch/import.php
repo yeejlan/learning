@@ -113,6 +113,7 @@ function do_import($options, $interval = null) {
 		}else{
 			die('No _id found '. var_export($row, true));
 		}
+        unset($row['_id']);
 		$data_formatted .= json_encode($row)."\n";
 		$cnt ++ ;
 		$total ++ ;
